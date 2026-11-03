@@ -89,6 +89,22 @@ All addresses are `/avatar/parameters/<name>`.
 If your prefab uses other names, edit `send_hr()` in `hr_osc.py`; it is a handful of lines.
 Remember that many prefabs also have a menu toggle on the avatar that has to be switched on.
 
+### No heart-rate prefab on your avatar yet?
+
+The bridge works out of the box with the official **VRCOSC Heartrate prefab** (a number display with a
+beating heart), made by VolcanicArts:
+
+**[Download VRCOSC-Heartrate.unitypackage](https://vrcosc.com/assets/files/VRCOSC-Heartrate-44bc3d431ee04ea4fe13c84162417987.unitypackage)**
+(from the [VRCOSC prefab downloads](https://vrcosc.com/docs/downloads#prefabs))
+
+1. Install [VRCFury](https://vrcfury.com/download) in your avatar project (VRChat Creator Companion).
+2. Install RED_SIM's free [Simple Counter Shader](https://www.patreon.com/posts/simple-counter-62864361), the prefab uses it for the digits.
+3. Import the unitypackage, drag the `Heartrate` prefab onto your avatar (e.g. onto the chest bone) and upload.
+4. In VRChat, switch the *Heartrate* toggle on in your avatar's expression menu.
+
+The prefab only needs `VRCOSC/Heartrate/Value`, which the bridge sends. It is not included in this
+repository because it is VolcanicArts' work; please get it from the link above.
+
 ## How it works
 
 The connection sequence mirrors what the official HypeRate Android app does (scan for service 0x180D,
@@ -121,6 +137,7 @@ The log lives in `fitbit-osc.log` next to the script when running in tray mode.
 3. **Starten:** `start-tray.bat` (unsichtbar, Herz-Symbol im Tray: grau = kein Band, rot = Puls kommt) oder `start.bat` (mit Fenster). Rechtsklick auf das Symbol: *Open log* / *Quit*.
 4. **Mit SteamVR starten:** `.venv\Scripts\python.exe register_steamvr.py`. Ab dann startet SteamVR die Brücke selbst und sie beendet sich nach SteamVR von selbst.
 5. **VRChat:** OSC einschalten (Action-Menü → Options → OSC → Enabled), Avatar mit Puls-Prefab anziehen, dessen Menü-Schalter an. Hast du VRCOSC mit HypeRate-Modul: Modul abschalten.
+   Noch kein Puls-Prefab? Das offizielle [VRCOSC-Heartrate-Prefab](https://vrcosc.com/assets/files/VRCOSC-Heartrate-44bc3d431ee04ea4fe13c84162417987.unitypackage) passt direkt (braucht VRCFury und RED_SIMs Counter Shader, siehe oben).
 6. **Bluetooth-Stick:** Ein echter Bluetooth-LE-Stick ist Pflicht, getestet mit TP-Link UB500. Billige „5.0“-Sticks, die sich als CSR8510 melden, sind Nachbauten und funktionieren nicht zuverlässig.
 
 ## License
