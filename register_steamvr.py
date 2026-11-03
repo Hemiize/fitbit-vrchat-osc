@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 hemiize - https://github.com/Hemiize/fitbit-vrchat-osc (credit required, see NOTICE)
 # Registriert die Brücke als SteamVR-Overlay-App mit Autostart (oder entfernt sie wieder mit --remove).
 # Schreibt fitbit-osc.vrmanifest mit den Pfaden dieses Ordners und meldet es über OpenVR an.
 # SteamVR muss nicht laufen; OpenVR startet dafür kurz den vrserver.

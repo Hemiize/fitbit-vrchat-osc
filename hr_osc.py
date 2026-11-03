@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 hemiize - https://github.com/Hemiize/fitbit-vrchat-osc (credit required, see NOTICE)
 # Puls der Fitbit Air per BLE lesen und per OSC an VRChat schicken – ohne HypeRate-Server.
 # Verbindungsablauf wie HypeRate Android 1.0.15 (0x180D scannen -> verbinden -> 0x2A37 abonnieren),
 # mit den Korrekturen, die der App fehlen: Flags-Byte richtig auswerten, gezielt koppeln, automatisch neu verbinden.

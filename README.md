@@ -140,6 +140,14 @@ The log lives in `fitbit-osc.log` next to the script when running in tray mode.
    Noch kein Puls-Prefab? Das offizielle [VRCOSC-Heartrate-Prefab](https://vrcosc.com/assets/files/VRCOSC-Heartrate-44bc3d431ee04ea4fe13c84162417987.unitypackage) passt direkt (braucht VRCFury und RED_SIMs Counter Shader, siehe oben).
 6. **Bluetooth-Stick:** Ein echter Bluetooth-LE-Stick ist Pflicht, getestet mit TP-Link UB500. Billige „5.0“-Sticks, die sich als CSR8510 melden, sind Nachbauten und funktionieren nicht zuverlässig.
 
-## License
+## License and credit
 
-MIT, see [LICENSE](LICENSE).
+Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+You may use, change and share this project, also commercially, **as long as you credit the author**:
+keep the `NOTICE` file and mention **hemiize** with a link to this repository
+(https://github.com/Hemiize/fitbit-vrchat-osc) in your README, release notes or the about/credits screen
+of your app. Changed files must say that you changed them.
+
+*Deutsch: Du darfst das Projekt nutzen, ändern und weitergeben, auch kommerziell, solange du
+**hemiize** mit Link zu diesem Repository nennst und die `NOTICE`-Datei mitlieferst.*
