@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+fitbit-osc.log
+fitbit-osc.vrmanifest
+*.bak*
