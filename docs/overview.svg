@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="300" viewBox="0 0 900 300" font-family="Segoe UI, Arial, sans-serif" font-size="15">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+  </defs>
+  <rect width="900" height="300" fill="#ffffff"/>
+
+  <!-- Band -->
+  <rect x="30" y="90" width="170" height="120" rx="14" fill="#e8f1fb" stroke="#2b6cb0" stroke-width="2"/>
+  <text x="115" y="125" text-anchor="middle" font-weight="bold" fill="#1a365d">Fitbit Air</text>
+  <text x="115" y="150" text-anchor="middle" fill="#2d3748">Heart Rate Service</text>
+  <text x="115" y="170" text-anchor="middle" fill="#2d3748">0x180D / 0x2A37</text>
+  <text x="115" y="192" text-anchor="middle" fill="#718096" font-size="13">"Share heart rate" on</text>
+
+  <!-- Arrow BLE -->
+  <line x1="200" y1="150" x2="300" y2="150" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="250" y="138" text-anchor="middle" fill="#555" font-size="13">Bluetooth LE</text>
+  <text x="250" y="172" text-anchor="middle" fill="#555" font-size="12">notify, paired</text>
+
+  <!-- PC box -->
+  <rect x="300" y="40" width="570" height="220" rx="14" fill="#f7fafc" stroke="#a0aec0" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="585" y="66" text-anchor="middle" fill="#4a5568" font-size="13">Windows PC — no phone app, no server, no account</text>
+
+  <!-- Bridge -->
+  <rect x="325" y="90" width="210" height="120" rx="14" fill="#fff5f5" stroke="#c53030" stroke-width="2"/>
+  <text x="430" y="125" text-anchor="middle" font-weight="bold" fill="#742a2a">hr_osc.py</text>
+  <text x="430" y="150" text-anchor="middle" fill="#2d3748">scan → pair → subscribe</text>
+  <text x="430" y="170" text-anchor="middle" fill="#2d3748">auto-reconnect</text>
+  <text x="430" y="192" text-anchor="middle" fill="#718096" font-size="13">tray icon ♥ · starts with SteamVR</text>
+
+  <!-- Arrow OSC -->
+  <line x1="535" y1="150" x2="635" y2="150" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="585" y="138" text-anchor="middle" fill="#555" font-size="13">OSC / UDP</text>
+  <text x="585" y="172" text-anchor="middle" fill="#555" font-size="12">127.0.0.1:9000</text>
+
+  <!-- VRChat -->
+  <rect x="635" y="90" width="210" height="120" rx="14" fill="#f0fff4" stroke="#2f855a" stroke-width="2"/>
+  <text x="740" y="125" text-anchor="middle" font-weight="bold" fill="#22543d">VRChat</text>
+  <text x="740" y="150" text-anchor="middle" fill="#2d3748">/avatar/parameters/</text>
+  <text x="740" y="170" text-anchor="middle" fill="#2d3748">VRCOSC/Heartrate/Value, HR …</text>
+  <text x="740" y="192" text-anchor="middle" fill="#718096" font-size="13">any heart-rate avatar prefab</text>
+
+  <text x="450" y="285" text-anchor="middle" fill="#718096" font-size="13">Needs a real Bluetooth 4.0+/5.x adapter (tested: TP-Link UB500, Realtek RTL8761B). Counterfeit CSR8510 sticks do not work reliably.</text>
+</svg>
