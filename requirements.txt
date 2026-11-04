@@ -11,3 +11,4 @@ winrt-Windows.Storage.Streams==4!10.0.28000.2957
 pystray>=0.19
 pillow>=10
 openvr>=2.5
+zeroconf==0.153.0

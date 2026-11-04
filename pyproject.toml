@@ -1,0 +1,17 @@
+[project]
+name = "fitbit-osc"
+dynamic = ["version"]
+description = "Fitbit Air heart rate to VRChat over Bluetooth LE and OSC"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+
+[tool.ruff]
+line-length = 130
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["B904", "UP031"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

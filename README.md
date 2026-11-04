@@ -1,8 +1,9 @@
 # Fitbit Air → VRChat heart rate over OSC
 
 Show your live heart rate on your VRChat avatar **without a phone app, without HypeRate/Pulsoid and without any
-account**. A small Python program on your Windows PC reads the heart rate straight from the Fitbit Air over
-Bluetooth LE and sends it to VRChat via OSC. It runs as a tray icon and can start automatically with SteamVR.
+account**. A small program on your Windows PC reads the heart rate straight from the Fitbit Air over Bluetooth LE
+and sends it to VRChat via OSC. It runs as a tray icon, can start with Windows or SteamVR, and can also show the
+heart rate in the VRChat chatbox or as an OBS overlay for streaming.
 
 ![Overview](docs/overview.svg)
 
@@ -12,19 +13,31 @@ Bluetooth LE and sends it to VRChat via OSC. It runs as a tray icon and can star
 |---|---|
 | **Band** | Fitbit Air (Google). Other bands that expose the standard Bluetooth *Heart Rate Service* (0x180D) should work too, but only the Fitbit Air was tested. |
 | **Phone** | The **Google Health** app (Android or iPhone), only once, to switch on heart-rate sharing on the band. After that the phone can stay in another room. |
-| **PC** | Windows 10/11, Python 3.11 or newer from [python.org](https://www.python.org/downloads/) (tick *Add python to PATH*). |
+| **PC** | Windows 10/11. Nothing else for the `.exe`; for running from source, Python 3.11 or newer from [python.org](https://www.python.org/downloads/). |
 | **Bluetooth** | A real Bluetooth LE adapter. Tested and recommended: **TP-Link UB500** (Realtek RTL8761B, ~10 €). Cheap no-name sticks that identify as *CSR8510 A10* are counterfeits: they go deaf after ~15 s of scanning, cannot scan while paired and drop the connection. They do not work reliably. |
 | **VRChat** | OSC enabled (Action menu → Options → OSC → Enabled) and an avatar with a heart-rate prefab, see [Avatar parameters](#avatar-parameters). |
 
 ## Install
 
+### Option A: the ready-made `.exe` (recommended)
+
+1. Download **`fitbit-osc.exe`** from the [latest release](https://github.com/Hemiize/fitbit-vrchat-osc/releases/latest).
+2. Put it in a folder of its own, e.g. `C:\Tools\fitbit-osc\`. Settings and the log are written next to it.
+3. Double-click it. A heart icon appears in the system tray (it may hide behind the **^** arrow).
+
+Windows SmartScreen may warn the first time because the file is not code-signed: click *More info* → *Run anyway*.
+Each release also lists the file's SHA-256 checksum (`fitbit-osc.exe.sha256`) if you want to verify it.
+
+### Option B: from source
+
 1. Download this repository (green **Code** button → *Download ZIP*) and unpack it, e.g. to `C:\Tools\fitbit-osc`.
    Avoid a path inside *Program Files* or a cloud-synced folder.
 2. Double-click **`install.bat`**. It creates a private Python environment in `.venv` and installs the dependencies
-   (bleak, WinRT, pystray, pyopenvr). Takes about a minute and needs internet once.
-3. Set up the band in Google Health, see the next section.
-4. If you use **VRCOSC** with its HypeRate or Pulsoid module: disable that module, otherwise two programs
-   write the same parameters.
+   (bleak, WinRT, pystray, pyopenvr, zeroconf). Takes about a minute and needs internet once.
+3. Start with **`start-tray.bat`** (tray icon) or **`start.bat`** (console window, to watch the log).
+
+**Either way:** set up the band in Google Health (next section). If you use **VRCOSC** with its HypeRate or
+Pulsoid module, disable that module, otherwise two programs write the same parameters.
 
 ## Set up the band in Google Health
 
@@ -62,37 +75,53 @@ of "equipment" to the band.
   with it. The bridge accepts the pairing request itself; you do not have to click anything. The phone may show a
   hint like *"Select 'Fitbit Air' on DESKTOP-XXXX"* at that moment: that is the band waiting for the PC, and the
   bridge answers within a few seconds.
-- **The band changes its Bluetooth address from time to time** (a privacy feature). The bridge handles that: if
-  the paired band stays unreachable twice in a row (about 40 s), it removes the pairing and searches again. The
-  address also changes when you switch *Share heart rate* off and on, which is the standard fix when pairing
-  keeps failing.
+- **Leaving the room is fine.** If the paired band does not answer, the bridge scans briefly. Band nowhere to be
+  seen: it keeps the pairing and retries every few seconds, up to every 30 s, so the band reconnects on its own
+  when you come back.
+- **The band changes its Bluetooth address from time to time** (a privacy feature). If the scan shows the band
+  under a new address, or the paired connection keeps failing although the band is right there, the bridge
+  removes the old pairing and pairs again. The address also changes when you switch *Share heart rate* off and
+  on, which is the standard fix when pairing keeps failing.
 - **0 BPM means the band is not on the wrist.** The band still sends values while lying on the desk, just zeros.
-  The bridge logs this once and sends nothing to the avatar until a real pulse arrives.
+  The avatar then shows the heart rate as inactive until a real pulse arrives.
 - **Battery.** Google notes that real-time sharing costs battery, so expect the band to need charging a bit
-  sooner with sharing permanently on.
+  sooner with sharing permanently on. The Fitbit Air does not report its battery level over Bluetooth; for bands
+  that do, it shows up in the tray and as an avatar parameter.
 - The band keeps syncing with the phone as usual; sharing only adds a second Bluetooth listener.
 
 ## Run
 
-| | |
+The heart icon in the system tray is grey while no band is connected and red while the heart rate is flowing.
+Hover over it for the current BPM. Right-click for the menu:
+
+| Menu item | What it does |
 |---|---|
-| **`start-tray.bat`** | Runs invisibly with a heart icon in the system tray. Grey = no band, red = heart rate flowing. Hover for the current BPM, right-click for *Open log* / *Quit*. |
-| **`start.bat`** | Same, but in a console window so you can watch what happens. Add options after the name, e.g. `start.bat --chatbox`. |
+| *status line* | No band connected / Band connected, plus the battery level if the band reports it. |
+| **Show in VRChat chatbox** | Also shows "❤ 72 BPM" in the VRChat chatbox every 3 s. |
+| **OBS overlay** | Serves a small heart-rate page for OBS, see [OBS overlay](#obs-overlay). |
+| **Open overlay in browser** | Opens that page, handy to copy the URL. |
+| **Start with Windows** | Starts the bridge in the tray when you log in. |
+| **Start with SteamVR** | Lets SteamVR start the bridge, see [Start with SteamVR](#start-with-steamvr). |
+| **Settings file** | Opens `config.json` in your editor, see [Settings](#settings). |
+| **Open log** | Opens `fitbit-osc.log`. |
+| **About** / **Quit** | Project page / stop the bridge. |
 
 ![Tray icon](docs/tray.png)
 
 ### First run, step by step
 
-Start `start.bat` once so you can see the log. With sharing on and the band on your wrist you should see this
-within about 20 seconds:
+From source, start `start.bat` once so you can watch the log; with the `.exe`, use *Open log* in the tray menu.
+With sharing on and the band on your wrist you should see this within about 20 seconds:
 
 ```
+fitbit-osc 1.1.0
+Sending OSC to 127.0.0.1:9000 (port from OSCQuery once VRChat runs)
 Scanning for band (is heart-rate sharing enabled on the band?)
 Band seen: 5D:DC:7E:7B:6E:3C Fitbit Air RSSI -52
 Pairing with 5D:DC:7E:7B:6E:3C
 Pairing request, kind 1 - accepting
 Pairing status 0 (0 = paired)
-Heart rate subscribed, sending OSC to 127.0.0.1:9000
+Heart rate subscribed
 BPM 72
 ```
 
@@ -103,31 +132,73 @@ From then on the band is paired with Windows and every later start connects dire
 Bluetooth adapter is unplugged or the radio is switched off, it logs `Bluetooth error` and retries every 10 s
 instead of exiting.
 
-### Options
+## Settings
+
+The tray switches are saved in **`config.json`** next to the program (or in `%LOCALAPPDATA%\fitbit-osc` if that
+folder is not writable). You can also edit it by hand; restart the bridge afterwards. Missing keys use the
+defaults:
+
+```json
+{
+  "ip": "127.0.0.1",
+  "port": "auto",
+  "name": "fitbit",
+  "min": 0,
+  "max": 255,
+  "chatbox": false,
+  "overlay": false,
+  "overlay_port": 8765
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `ip`, `port` | Where OSC goes. `"auto"` asks VRChat for its OSC port via OSCQuery and falls back to 9000, so it also works when VRChat was started with `--osc=...`. A number fixes the port. |
+| `name` | Part of the band's Bluetooth name. The scan accepts any heart-rate device, but reconnecting to an already paired band goes by this name, so use e.g. `"polar"` for another brand. |
+| `min`, `max` | Range for `HRPercent` / `Normalised`. With 40 and 200, 40 BPM is 0 % and 200 BPM is 100 %. |
+| `chatbox`, `overlay` | Same as the tray switches. |
+| `overlay_port` | Port of the OBS overlay page. |
+
+Every setting can also be given on the command line for one run, which wins over the file:
 
 ```
---chatbox            also show "♥ 72 BPM" in the VRChat chatbox every 3 s
---min 40 --max 200   range used for HRPercent / Normalised (default 0–255)
---ip / --port        OSC target, default 127.0.0.1:9000 (VRChat)
---name fitbit        part of the band's Bluetooth name (default "fitbit"); the scan accepts any 0x180D
-                     device, but reconnecting to an already paired band on a later start goes by this name,
-                     so pass e.g. --name polar for another brand
---demo               no band: send synthetic values, handy for testing the avatar
---tray               tray icon instead of console, log goes to fitbit-osc.log
+--ip 127.0.0.1  --port auto|9000  --name fitbit  --min 40 --max 200  --chatbox  --overlay  --overlay-port 8765
+--demo               no band: send a synthetic pulse, handy for testing the avatar
+--tray               tray icon instead of console (always on for the .exe), log goes to fitbit-osc.log
 --follow-steamvr     exit ~20 s after SteamVR closes (used by the SteamVR autostart)
+--register-steamvr / --unregister-steamvr     set up or remove the SteamVR autostart, then exit
+--version
 ```
 
-## Start automatically with SteamVR
+With the `.exe`, put them after the file name in a shortcut, e.g. `fitbit-osc.exe --chatbox`. From source:
+`start.bat --chatbox`.
+
+## Start with SteamVR
+
+Tick **Start with SteamVR** in the tray menu. This registers the bridge as a SteamVR overlay application with
+autostart, the same mechanism VRCOSC and other VR tools use. From then on SteamVR launches it in the tray and it
+quits itself about 20 s after SteamVR closes. You can also toggle it in SteamVR under *Settings → Startup/Shutdown
+→ Choose startup overlay apps*. If you move the program, untick and tick it again so SteamVR gets the new path.
+
+From source the same works with a script, which also accepts extra options:
 
 ```
-.venv\Scripts\python.exe register_steamvr.py
+.venv\Scripts\python.exe register_steamvr.py --extra-args "--chatbox --max 200"
+.venv\Scripts\python.exe register_steamvr.py --remove
 ```
 
-This registers the bridge as a SteamVR overlay application with autostart, the same mechanism VRCOSC and
-other VR tools use. From then on SteamVR launches it (tray mode) and it quits itself shortly after SteamVR
-closes. You can toggle it in SteamVR under *Settings → Startup/Shutdown → Choose startup overlay apps*.
-Undo with `register_steamvr.py --remove`. If you move the folder, run the script again.
-Extra options for the autostart go in like this: `register_steamvr.py --extra-args "--chatbox --max 200"`.
+*Start with Windows* and *Start with SteamVR* can both be on. Only one bridge runs at a time: if it is already
+running from the Windows autostart, the one SteamVR starts exits right away, and the first one keeps running after
+SteamVR closes.
+
+## OBS overlay
+
+Switch **OBS overlay** on in the tray menu. The bridge then serves a page at `http://127.0.0.1:8765/` showing a
+beating heart and the BPM on a transparent background. In OBS add a **Browser** source with that URL (width
+about 300, height about 120). The page only listens on your own PC.
+
+Optional URL parameters: `?size=96` (font size in px), `&color=%23ffffff` (text), `&heart=%23e12d46` (heart).
+When the heart rate stops, the overlay dims and shows `--`.
 
 ## Avatar parameters
 
@@ -139,14 +210,20 @@ All addresses are `/avatar/parameters/<name>`.
 | `VRCOSC/Heartrate/Value` | int | BPM (0–255) | VRCOSC heart-rate prefab |
 | `VRCOSC/Heartrate/Normalised` | float | 0…1 | VRCOSC |
 | `VRCOSC/Heartrate/Units`, `Tens`, `Hundreds` | int | digits | VRCOSC |
-| `VRCOSC/Heartrate/Enabled` | bool | band connected | VRCOSC |
-| `HR` | int | BPM | HRtoVRChat_OSC style prefabs |
+| `VRCOSC/Heartrate/Enabled` | bool | heart rate is live | VRCOSC |
+| `HR` | int | BPM (0–255) | HRtoVRChat_OSC style prefabs |
 | `onesHR`, `tensHR`, `hundredsHR` | int | digits | HRtoVRChat_OSC |
 | `HRPercent`, `FullHRPercent` | float | 0…1 / −1…1 | HRtoVRChat_OSC |
-| `isHRConnected`, `isHRActive` | bool | status | HRtoVRChat_OSC |
+| `isHRConnected` | bool | band connected | HRtoVRChat_OSC |
+| `isHRActive` | bool | heart rate is live | HRtoVRChat_OSC |
 | `isHRBeat`, `HeartBeatToggle` | bool | toggles with each heartbeat | HRtoVRChat_OSC |
+| `HRBattery` | float | band battery 0…1, only if the band reports it | this bridge |
 
-If your prefab uses other names, edit `send_hr()` in `hr_osc.py`; it is a handful of lines.
+"Heart rate is live" turns off when no valid value arrived for 5 s, when the band reports 0 BPM or no skin
+contact, and when the band disconnects. Prefabs that hide the display on these parameters therefore no longer
+show a frozen number.
+
+If your prefab uses other names, edit `hr_params()` in `fitbit_osc/protocol.py`; it is a handful of lines.
 Remember that many prefabs also have a menu toggle on the avatar that has to be switched on.
 
 ### No heart-rate prefab on your avatar yet?
@@ -165,22 +242,25 @@ beating heart), made by VolcanicArts:
 The prefab only needs `VRCOSC/Heartrate/Value`, which the bridge sends. It is not included in this
 repository because it is VolcanicArts' work; please get it from the link above.
 
-Quick check without the band: `start.bat --demo` sends a synthetic pulse between 60 and 100 BPM, so you can
-see whether the avatar reacts before you deal with Bluetooth.
+Quick check without the band: run with `--demo` (e.g. `start.bat --demo`). It sends a synthetic pulse between
+60 and 100 BPM, so you can see whether the avatar reacts before you deal with Bluetooth.
 
 ## How it works
 
 The connection sequence mirrors what the official HypeRate Android app does (scan for service 0x180D,
-connect, enable notifications on characteristic 0x2A37), with three things the app gets wrong fixed:
+connect, enable notifications on characteristic 0x2A37), with the things the app gets wrong fixed:
 
-- The heart-rate flags byte is evaluated correctly, so 16-bit values are read properly.
+- The heart-rate packet is parsed per the Bluetooth specification: 8- and 16-bit values, skin-contact flag,
+  energy and RR-interval fields.
 - The band is paired deliberately. Without pairing the Fitbit Air disconnects after 20–30 s.
   Android pairs implicitly on the first protected access, Windows only on request.
 - Lost connections are re-established automatically, also when Windows fails to report the drop
   (no measurement for 20 s counts as disconnected).
+- The pairing is only removed when the band really changed its address or keeps failing in plain sight, not
+  when it is simply out of range.
 
-Pairing is done through the Windows Bluetooth API only, with no second connection held by the script at the
-same time; a parallel connection made pairing fail and left the band invisible.
+Pairing is done through the Windows Bluetooth API only, with no second connection held at the same time; a
+parallel connection made pairing fail and left the band invisible.
 
 ## Troubleshooting
 
@@ -190,14 +270,30 @@ same time; a parallel connection made pairing fail and left the band invisible.
 | `No band seen`, but the phone shows the band is sharing | Switch *Share heart rate* off and on again; the band then advertises with a fresh address. Also check in Windows *Bluetooth & devices* whether an old *Fitbit Air* entry is left over and remove it. |
 | `Pairing status 19` | The band dropped the connection during pairing. The bridge retries; if it keeps failing, toggle *Share heart rate* off and on. |
 | `Pairing status 2` (NotPaired) | Pairing was refused. Make sure no other device holds the band (phone app, treadmill), toggle *Share heart rate* off and on, then restart the bridge. |
-| `paired band unreachable (GATT status 1)` | The band is out of range or sleeping. After two attempts the bridge unpairs and scans again; nothing to do. If it happens with the band on your wrist next to the PC, the adapter is the problem. |
-| `Band reports 0 BPM` | Put the band on; the optical sensor needs skin contact. The avatar keeps the last real value until then. |
+| `paired band unreachable (GATT status 1)` | Usually followed by a short scan. `Band not in range, keeping the pairing`: the band is away or asleep, nothing to do. `Band is in range, trying again`: the next attempt normally connects. If it keeps failing with the band on your wrist next to the PC, the adapter is the problem. |
+| `Band reports 0 BPM` / `no skin contact` | Put the band on; the optical sensor needs skin contact. The avatar shows the heart rate as inactive until then. |
 | `Bluetooth error ... retrying in 10 s` | The Bluetooth adapter is gone or the radio is off. Plug it back in; the bridge continues on its own. |
-| Values arrive but the avatar shows nothing | OSC enabled in VRChat? Prefab menu toggle on? Parameter names match (see table)? Test with `start.bat --demo`. |
+| Values arrive but the avatar shows nothing | OSC enabled in VRChat? Prefab menu toggle on? Parameter names match (see table)? Test with `--demo`. |
+| VRChat runs on a non-standard OSC port | With `"port": "auto"` the log shows `VRChat OSC port found via OSCQuery: ...` once VRChat is running. If not, set the port by hand in `config.json`. |
+| `OBS overlay could not use port 8765` | Another program uses that port. Set a different `overlay_port` in `config.json`. |
 | Connection drops every ~15 s | Almost always the Bluetooth adapter. Try a different USB port or an extension cable away from the PC case, or a better adapter. |
-| Two bridges fight over the band | Only one instance runs at a time; a second start exits immediately. Check the SteamVR autostart isn't running next to a manual start. |
+| Two bridges fight over the band | Only one instance runs at a time; a second start exits immediately. |
 
-The log lives in `fitbit-osc.log` next to the script when running in tray mode (tray menu → *Open log*).
+The log is `fitbit-osc.log` next to the program when running in the tray (tray menu → *Open log*).
+
+## Development
+
+```
+.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.venv\Scripts\python.exe -m pytest
+.venv\Scripts\python.exe -m ruff check .
+.venv\Scripts\python.exe packaging\build_exe.py
+```
+
+The code lives in `fitbit_osc/`: `protocol.py` (packet parsing, OSC encoding, parameters, no Bluetooth),
+`bridge.py` (state and stale detection), `ble.py` (Windows Bluetooth), `app.py` (tray and background tasks),
+plus `config.py`, `oscquery.py`, `overlay.py`, `autostart.py` and `steamvr.py`. GitHub Actions runs the tests and
+builds the `.exe` on every push; publishing a release attaches the `.exe` and its checksum automatically.
 
 ## License and credit
 

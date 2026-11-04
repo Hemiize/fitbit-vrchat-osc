@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+      - name: Install
+        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - name: Lint
+        run: python -m ruff check .
+      - name: Tests
+        run: python -m pytest -q
+      - name: Build exe
+        run: python packaging/build_exe.py
+      - name: Check exe version
+        shell: pwsh
+        run: |
+          $v = (Get-Item dist/fitbit-osc.exe).VersionInfo.FileVersion
+          $want = (python -c "import fitbit_osc; print(fitbit_osc.__version__)")
+          if ($v -ne $want) { throw "exe version $v, expected $want" }
+          "fitbit-osc.exe $v, $([math]::Round((Get-Item dist/fitbit-osc.exe).Length / 1MB, 1)) MB"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fitbit-osc-exe
+          path: dist/fitbit-osc.exe
+          retention-days: 14
