@@ -11,7 +11,7 @@ heart rate in the VRChat chatbox or as an OBS overlay for streaming.
 
 | | |
 |---|---|
-| **Band** | Fitbit Air (Google). Other bands that expose the standard Bluetooth *Heart Rate Service* (0x180D) should work too, but only the Fitbit Air was tested. |
+| **Band** | **Fitbit Air** (Google). This bridge is built and tested for the Fitbit Air only. |
 | **Phone** | The **Google Health** app (Android or iPhone), only once, to switch on heart-rate sharing on the band. After that the phone can stay in another room. |
 | **PC** | Windows 10/11. Nothing else for the `.exe`; for running from source, Python 3.11 or newer from [python.org](https://www.python.org/downloads/). |
 | **Bluetooth** | A real Bluetooth LE adapter. Tested and recommended: **TP-Link UB500** (Realtek RTL8761B, ~10 €). Cheap no-name sticks that identify as *CSR8510 A10* are counterfeits: they go deaf after ~15 s of scanning, cannot scan while paired and drop the connection. They do not work reliably. |
@@ -85,8 +85,8 @@ of "equipment" to the band.
 - **0 BPM means the band is not on the wrist.** The band still sends values while lying on the desk, just zeros.
   The avatar then shows the heart rate as inactive until a real pulse arrives.
 - **Battery.** Google notes that real-time sharing costs battery, so expect the band to need charging a bit
-  sooner with sharing permanently on. The Fitbit Air does not report its battery level over Bluetooth; for bands
-  that do, it shows up in the tray and as an avatar parameter.
+  sooner with sharing permanently on. The Fitbit Air does not report its battery level over Bluetooth, so the
+  bridge cannot show it.
 - The band keeps syncing with the phone as usual; sharing only adds a second Bluetooth listener.
 
 ## Run
@@ -96,7 +96,7 @@ Hover over it for the current BPM. Right-click for the menu:
 
 | Menu item | What it does |
 |---|---|
-| *status line* | No band connected / Band connected, plus the battery level if the band reports it. |
+| *status line* | No band connected / Band connected. |
 | **Show in VRChat chatbox** | Also shows "❤ 72 BPM" in the VRChat chatbox every 3 s. |
 | **OBS overlay** | Serves a small heart-rate page for OBS, see [OBS overlay](#obs-overlay). |
 | **Open overlay in browser** | Opens that page, handy to copy the URL. |
@@ -154,7 +154,7 @@ defaults:
 | Key | Meaning |
 |---|---|
 | `ip`, `port` | Where OSC goes. `"auto"` asks VRChat for its OSC port via OSCQuery and falls back to 9000, so it also works when VRChat was started with `--osc=...`. A number fixes the port. |
-| `name` | Part of the band's Bluetooth name. The scan accepts any heart-rate device, but reconnecting to an already paired band goes by this name, so use e.g. `"polar"` for another brand. |
+| `name` | Part of the band's Bluetooth name, used to find the paired Fitbit Air in Windows again. Leave it at `"fitbit"`. |
 | `min`, `max` | Range for `HRPercent` / `Normalised`. With 40 and 200, 40 BPM is 0 % and 200 BPM is 100 %. |
 | `chatbox`, `overlay` | Same as the tray switches. |
 | `overlay_port` | Port of the OBS overlay page. |
@@ -217,7 +217,7 @@ All addresses are `/avatar/parameters/<name>`.
 | `isHRConnected` | bool | band connected | HRtoVRChat_OSC |
 | `isHRActive` | bool | heart rate is live | HRtoVRChat_OSC |
 | `isHRBeat`, `HeartBeatToggle` | bool | toggles with each heartbeat | HRtoVRChat_OSC |
-| `HRBattery` | float | band battery 0…1, only if the band reports it | this bridge |
+| `HRBattery` | float | band battery 0…1, reserved; the Fitbit Air does not report it | this bridge |
 
 "Heart rate is live" turns off when no valid value arrived for 5 s, when the band reports 0 BPM or no skin
 contact, and when the band disconnects. Prefabs that hide the display on these parameters therefore no longer
