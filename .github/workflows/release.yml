@@ -1,0 +1,48 @@
+name: Release exe
+
+# Wird ein Release veröffentlicht, baut dieser Workflow fitbit-osc.exe aus dem Tag und hängt sie an das Release.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to (re)build the exe for, e.g. v1.1.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  exe:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - name: Tests
+        run: python -m pytest -q
+      - name: Check tag matches version
+        shell: pwsh
+        run: |
+          $want = "v" + (python -c "import fitbit_osc; print(fitbit_osc.__version__)")
+          if ($env:TAG -ne $want) { throw "tag $env:TAG does not match fitbit_osc.__version__ ($want)" }
+      - name: Build exe
+        run: python packaging/build_exe.py
+      - name: Checksum
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash dist/fitbit-osc.exe -Algorithm SHA256).Hash.ToLower()
+          "$h  fitbit-osc.exe" | Out-File -Encoding ascii dist/fitbit-osc.exe.sha256
+          Get-Content dist/fitbit-osc.exe.sha256
+      - name: Attach to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$env:TAG" dist/fitbit-osc.exe dist/fitbit-osc.exe.sha256 --clobber

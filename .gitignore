@@ -4,3 +4,9 @@ __pycache__/
 fitbit-osc.log
 fitbit-osc.vrmanifest
 *.bak*
+dist/
+build/
+config.json
+.pytest_cache/
+.ruff_cache/
+.fitbit-osc-write-test
