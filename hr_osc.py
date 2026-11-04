@@ -15,6 +15,7 @@ HR_SVC = "0000180d-0000-1000-8000-00805f9b34fb"
 HR_MEAS = "00002a37-0000-1000-8000-00805f9b34fb"
 WINDOW = 15
 DIRECT_TIMEOUT = 20
+STALE = 20  # Sekunden ohne Messwert bei "verbundenem" Band -> Verbindung gilt als tot, neu verbinden
 
 ap = argparse.ArgumentParser(description="Fitbit Air heart rate -> VRChat OSC")
 ap.add_argument("--ip", default="127.0.0.1")
@@ -30,7 +31,7 @@ args = ap.parse_args()
 
 LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fitbit-osc.log")
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-state = {"bpm": 0, "last": 0.0, "connected": False}
+state = {"bpm": 0, "last": 0.0, "seen": 0.0, "connected": False}  # last: letzter Puls > 0, seen: letzter Messwert überhaupt
 tray = {"icon": None, "images": {}}
 stop_event = None  # asyncio.Event, in main() angelegt
 main_loop = None
@@ -155,12 +156,16 @@ async def chatbox_loop():
 # --- BLE ---------------------------------------------------------------------------------------
 
 def on_hr(_, data: bytearray):
+    if len(data) < 2:
+        return
+    state["seen"] = time.time()
     # Bit 0 des Flags-Bytes: 0 = UINT8, 1 = UINT16 ab Offset 1 (HypeRate prüft hier fälschlich getProperties())
     bpm = int.from_bytes(data[1:3], "little") if data[0] & 1 else data[1]
     if bpm == 0:
         if state["bpm"] != 0 or not state.get("zero_logged"):
             log("Band reports 0 BPM (not on the wrist?), raw", bytes(data).hex())
             state["bpm"], state["zero_logged"] = 0, True
+            tray_set(True, "Heart rate: 0 BPM (band not on the wrist?)")
         return
     state["zero_logged"] = False
     if bpm != state["bpm"]:
@@ -215,12 +220,17 @@ async def _pair(dev):
 
 async def find_paired():
     # Gekoppelte Fitbit in Windows suchen -> Bluetooth-Adresse als int
+    if not args.name:
+        return None  # ohne Namensfilter passte jedes gekoppelte BLE-Gerät (Maus, Controller) und würde am Ende entkoppelt
     sel = BluetoothLEDevice.get_device_selector_from_pairing_state(True)
     for info in await DeviceInformation.find_all_async_aqs_filter(sel):
         if args.name.lower() in (info.name or "").lower():
             dev = await BluetoothLEDevice.from_id_async(info.id)
             if dev:
-                return dev.bluetooth_address
+                try:
+                    return dev.bluetooth_address
+                finally:
+                    dev.close()
     return None
 
 async def unpair(address: int):
@@ -263,10 +273,23 @@ async def direct_session(address: int):
         st = await char.write_client_characteristic_configuration_descriptor_async(CCCD.NOTIFY)
         if st != GattCommunicationStatus.SUCCESS:
             raise ConnectionError(f"notifications refused (status {int(st)})")
-        state["connected"] = True
+        # Ein kurzer Abbruch während der Dienstsuche hat `lost` evtl. schon gesetzt; der zählt nicht mehr.
+        # Ist das Band jetzt wirklich weg, zeigt es der Status, und ein späterer Abbruch setzt `lost` erneut.
+        lost.clear()
+        if dev.connection_status != BluetoothConnectionStatus.CONNECTED:
+            raise ConnectionError("band dropped the connection right after subscribing")
+        state["connected"], state["seen"] = True, time.time()
         log("Heart rate subscribed, sending OSC to", f"{args.ip}:{args.port}")
-        await lost.wait()
-        log("Band disconnected")
+        while True:
+            try:
+                await asyncio.wait_for(lost.wait(), 5)
+                log("Band disconnected")
+                break
+            except asyncio.TimeoutError:
+                # Windows meldet nicht jeden Abriss; ohne Messwerte gilt die Verbindung trotzdem als tot
+                if time.time() - state["seen"] > STALE:
+                    log(f"No data for {STALE} s although Windows still reports a connection, reconnecting")
+                    break
     finally:
         state["connected"] = False
         send_disconnected()
@@ -276,14 +299,13 @@ async def direct_session(address: int):
         dev.close()
 
 async def session(dev):
-    # Scan-Treffer -> über Windows koppeln. Gibt True zurück, wenn das Band danach gekoppelt ist.
+    # Scan-Treffer -> über Windows koppeln. Gibt die Bluetooth-Adresse zurück, wenn das Band danach gekoppelt ist.
     adv = dev.details.adv or dev.details.scan
     address = adv.bluetooth_address
     log("Pairing with", dev.address)
-    paired = await pair(address)
-    if not paired:
+    if not await pair(address):
         raise ConnectionError("pairing failed")
-    return True
+    return address
 
 async def paired_loop(address: int):
     # So lange direkt verbinden, wie es klappt; zweimal hintereinander unerreichbar -> Kopplung lösen,
@@ -300,15 +322,13 @@ async def paired_loop(address: int):
     await unpair(address)
 
 async def ble_loop():
-    dev = None
     while True:
-        address = await find_paired()
-        if address is not None:
-            log("Band is paired (%012X), connecting directly" % address)
-            await paired_loop(address)
-            dev = None
-            continue
-        if dev is None:
+        try:
+            address = await find_paired()
+            if address is not None:
+                log("Band is paired (%012X), connecting directly" % address)
+                await paired_loop(address)
+                continue
             log("Scanning for band (is heart-rate sharing enabled on the band?)")
             found = await find_band()
             if not found:
@@ -316,13 +336,19 @@ async def ble_loop():
                 continue
             dev, rssi = found
             log("Band seen:", dev.address, dev.name, "RSSI", rssi)
-        try:
-            if await session(dev):
-                dev = None  # nächste Runde läuft über die gekoppelte Direktverbindung
+            try:
+                address = await session(dev)
+            except Exception as e:
+                log("Connection failed:", type(e).__name__, e)  # nächster Versuch über den Scan (Random-Adresse kann wechseln)
+                await asyncio.sleep(1)
+                continue
+            # Frisch gekoppelt: direkt mit dieser Adresse verbinden, egal unter welchem Namen Windows das Band führt.
+            # (Vorher lief das nur über find_paired, also nur für Geräte mit --name im Namen.)
+            await paired_loop(address)
         except Exception as e:
-            log("Connection failed:", type(e).__name__, e)
-            dev = None  # nächster Versuch wieder über den Scan (Random-Adresse kann wechseln)
-        await asyncio.sleep(1)
+            # Bluetooth-Stick abgezogen, Funk aus, WinRT-Fehler: nicht abstürzen, sondern später neu versuchen
+            log("Bluetooth error:", type(e).__name__, e, "- retrying in 10 s")
+            await asyncio.sleep(10)
 
 async def demo_loop():
     import math
@@ -334,12 +360,21 @@ async def demo_loop():
 async def follow_steamvr():
     # Von SteamVR gestartet: SteamVR beendet Fremdprogramme nicht selbst, also schauen wir alle 10 s nach vrserver.exe
     import subprocess
+    def vrserver_running() -> bool:
+        # tasklist schreibt in OEM-Kodierung; nur nach dem ASCII-Namen suchen. CREATE_NO_WINDOW, weil unter
+        # pythonw sonst alle 10 s kurz ein Konsolenfenster aufblitzt.
+        out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq vrserver.exe", "/NH"], capture_output=True,
+                             creationflags=subprocess.CREATE_NO_WINDOW).stdout
+        return b"vrserver.exe" in out
     missing = 0
     while True:
         await asyncio.sleep(10)
-        # tasklist schreibt in OEM-Kodierung; nur nach dem ASCII-Namen suchen
-        out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq vrserver.exe", "/NH"], capture_output=True).stdout
-        missing = 0 if b"vrserver.exe" in out else missing + 1
+        try:
+            running = await asyncio.to_thread(vrserver_running)  # blockiert den Puls-Takt nicht
+        except Exception as e:
+            log("tasklist failed:", type(e).__name__, e)
+            continue
+        missing = 0 if running else missing + 1
         if missing >= 2:
             log("SteamVR closed, bridge stops")
             return
